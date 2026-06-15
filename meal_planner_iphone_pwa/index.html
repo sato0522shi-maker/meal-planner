@@ -45,6 +45,9 @@
     .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
     .ingredientRow { display:grid; grid-template-columns:1.6fr .8fr .8fr 1fr 42px; gap:6px; margin:6px 0; align-items:center; }
     @media (max-width:680px){ .ingredientRow { grid-template-columns:1fr 1fr; } .ingredientRow button { grid-column:1 / -1; } .row,.row3 { grid-template-columns:1fr; } }
+    .suggestPanel { grid-column:1 / -1; display:none; gap:6px; flex-wrap:wrap; padding:6px 0 2px; }
+    .suggestPanel.open { display:flex; }
+    .suggestBtn { width:auto; margin:0; padding:7px 10px; border-radius:999px; border:1px solid #c9cdd3; background:#f8fafc; color:#1f2937; font-size:12px; font-weight:700; }
     .hint { color:var(--muted); font-size:12px; line-height:1.5; }
     .recipe, .tagitem { border:1px solid var(--line); border-radius:10px; padding:10px; margin:8px 0; background:#fafafa; }
     .recipe strong { display:block; margin-bottom:4px; }
@@ -116,7 +119,7 @@
       <div class="body">
         <div class="row3">
           <div><label>素材</label><input id="tagIngredientName" placeholder="例：鶏もも肉"></div>
-          <div><label>単位</label><input id="tagUnit" placeholder="例：g / 個 / 本"></div>
+          <div><label>単位</label><input id="tagUnit" list="unitNames" placeholder="例：g / 個 / 本 / 大さじ / 小さじ"></div>
           <div><label>タグ</label><input id="tagName" placeholder="例：肉 / 野菜 / 調味料"></div>
         </div>
         <button onclick="addIngredientTag()">材料フォーマットを保存</button>
@@ -168,7 +171,7 @@ function defaultRecipes(){ return [
 ];}
 function defaultTags(){ return {'豚こま肉':'肉','豚バラ肉':'肉','鶏もも肉':'肉','卵':'卵・乳製品','豆腐':'豆腐・大豆','玉ねぎ':'野菜','じゃがいも':'野菜','にんじん':'野菜','大根':'野菜','キャベツ':'野菜','もやし':'野菜','カレールー':'調味料','めんつゆ':'調味料','味噌':'調味料','焼きそば麺':'主食'}; }
 function defaultFormats(){ const units={'豚こま肉':'g','豚バラ肉':'g','鶏もも肉':'g','卵':'個','豆腐':'丁','玉ねぎ':'個','じゃがいも':'個','にんじん':'本','大根':'本','キャベツ':'玉','もやし':'袋','カレールー':'箱','めんつゆ':'ml','味噌':'g','焼きそば麺':'玉'}; const tags=defaultTags(); const out={}; Object.keys(tags).forEach(k=>out[k]={unit:units[k]||'', tag:tags[k]}); return out; }
-function normalizeRecipe(r){ return { name:r.name, baseServings:Number(r.baseServings||2), category:r.category||'', ingredients:(r.ingredients||[]).map(i=>({name:i.name, qty:Number(i.qty||0), unit:i.unit||'', tag:i.tag||''})) }; }
+function normalizeRecipe(r){ return { name:r.name, baseServings:Number(r.baseServings||2), category:r.category||'', ingredients:(r.ingredients||[]).map(i=>({name:i.name, qty:String(i.qty ?? ''), unit:i.unit||'', tag:i.tag||''})) }; }
 function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({recipes, ingredientTags, ingredientFormats, currentPlan, currentTarget})); }
 function load(){
   try {
@@ -193,12 +196,26 @@ function addIngredientRow(value={name:'',qty:'',unit:'',tag:''}){
   const box=document.getElementById('ingredientRows');
   const id='row_'+Math.random().toString(36).slice(2);
   const div=document.createElement('div'); div.className='ingredientRow'; div.id=id;
-  div.innerHTML=`<input class="ingName" list="materialNames" placeholder="素材" value="${escapeAttr(value.name)}" oninput="applyMaterialFormat(this)"><input class="ingQty" type="number" step="0.01" placeholder="数量" value="${escapeAttr(value.qty)}"><input class="ingUnit" list="unitNames" placeholder="単位" value="${escapeAttr(value.unit)}"><input class="ingTag" list="tagNames" placeholder="タグ" value="${escapeAttr(value.tag)}"><button class="danger mini" onclick="removeIngredientRow('${id}')">×</button>`;
+  div.innerHTML=`<input class="ingName" list="materialNames" placeholder="素材" value="${escapeAttr(value.name)}" onfocus="showMaterialSuggestions(this)" oninput="applyMaterialFormat(this); showMaterialSuggestions(this)"><input class="ingQty" type="text" inputmode="decimal" placeholder="数量 例：1 / 1/2 / 少々" value="${escapeAttr(value.qty)}"><input class="ingUnit" list="unitNames" placeholder="単位" value="${escapeAttr(value.unit)}"><input class="ingTag" list="tagNames" placeholder="タグ" value="${escapeAttr(value.tag)}"><button class="danger mini" onclick="removeIngredientRow('${id}')">×</button><div class="suggestPanel"></div>`;
   box.appendChild(div); renderDatalists();
 }
 function removeIngredientRow(id){ const el=document.getElementById(id); if(el) el.remove(); }
 function applyMaterialFormat(input){ const f=getFormat(input.value.trim()); const row=input.closest('.ingredientRow'); if(f.unit && !row.querySelector('.ingUnit').value) row.querySelector('.ingUnit').value=f.unit; if(f.tag && !row.querySelector('.ingTag').value) row.querySelector('.ingTag').value=f.tag; }
-function readIngredientRows(){ return [...document.querySelectorAll('.ingredientRow')].map(row=>({name:row.querySelector('.ingName').value.trim(), qty:Number(row.querySelector('.ingQty').value||0), unit:row.querySelector('.ingUnit').value.trim(), tag:row.querySelector('.ingTag').value.trim()})).filter(i=>i.name && !Number.isNaN(i.qty)); }
+function materialNames(){ return [...new Set([...Object.keys(ingredientFormats), ...recipes.flatMap(r=>r.ingredients.map(i=>i.name))])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ja')); }
+function showMaterialSuggestions(input){
+  const row=input.closest('.ingredientRow'); const panel=row.querySelector('.suggestPanel'); if(!panel) return;
+  const q=input.value.trim();
+  const list=materialNames().filter(name=>!q || name.includes(q)).slice(0,18);
+  if(!list.length){ panel.classList.remove('open'); panel.innerHTML=''; return; }
+  panel.innerHTML=list.map(name=>`<button type="button" class="suggestBtn" onclick="chooseMaterialSuggestion(this, '${escapeJs(name)}')">${escapeHtml(name)}</button>`).join('');
+  panel.classList.add('open');
+}
+function chooseMaterialSuggestion(btn,name){
+  const row=btn.closest('.ingredientRow'); const input=row.querySelector('.ingName');
+  input.value=name; applyMaterialFormat(input);
+  const panel=row.querySelector('.suggestPanel'); if(panel){ panel.classList.remove('open'); panel.innerHTML=''; }
+}
+function readIngredientRows(){ return [...document.querySelectorAll('.ingredientRow')].map(row=>({name:row.querySelector('.ingName').value.trim(), qty:row.querySelector('.ingQty').value.trim(), unit:row.querySelector('.ingUnit').value.trim(), tag:row.querySelector('.ingTag').value.trim()})).filter(i=>i.name && i.qty); }
 function addRecipe(){
   const name=document.getElementById('recipeName').value.trim(); const baseServings=Number(document.getElementById('baseServings').value); const category=document.getElementById('category').value.trim(); const ingredients=readIngredientRows();
   if(!name){ alert('レシピ名を入力してください'); return; }
@@ -219,7 +236,8 @@ function deleteIngredientTag(name){ delete ingredientTags[name]; delete ingredie
 function renderDatalists(){
   ['materialNames','unitNames','tagNames'].forEach(id=>{ const old=document.getElementById(id); if(old) old.remove(); });
   const materials=[...new Set([...Object.keys(ingredientFormats), ...recipes.flatMap(r=>r.ingredients.map(i=>i.name))])].sort((a,b)=>a.localeCompare(b,'ja'));
-  const units=[...new Set([...Object.values(ingredientFormats).map(f=>f.unit), ...recipes.flatMap(r=>r.ingredients.map(i=>i.unit))].filter(Boolean))].sort();
+  const defaultUnits=['g','kg','ml','L','個','本','枚','袋','玉','丁','箱','大さじ','小さじ','少々','適量'];
+  const units=[...new Set([...defaultUnits, ...Object.values(ingredientFormats).map(f=>f.unit), ...recipes.flatMap(r=>r.ingredients.map(i=>i.unit))].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
   const tags=[...new Set([...Object.values(ingredientFormats).map(f=>f.tag), ...Object.values(ingredientTags), ...recipes.flatMap(r=>r.ingredients.map(i=>i.tag))].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
   document.body.insertAdjacentHTML('beforeend', `<datalist id="materialNames">${materials.map(x=>`<option value="${escapeAttr(x)}">`).join('')}</datalist><datalist id="unitNames">${units.map(x=>`<option value="${escapeAttr(x)}">`).join('')}</datalist><datalist id="tagNames">${tags.map(x=>`<option value="${escapeAttr(x)}">`).join('')}</datalist>`);
 }
@@ -251,12 +269,30 @@ function renderPlan(slots,target){
   const box=document.getElementById('planResult'); if(!slots || !slots.length){ box.innerHTML='まだ作成されていません。'; return; }
   box.innerHTML=slots.map((s,i)=>{ const r=s.type==='recipe'?findRecipe(s.recipeName||s.title):null; const title=s.type==='recipe' && r ? r.name : s.title; const detail=r ? `${r.category||'通常'}｜${r.baseServings}人基準 → ${target}人分` : '材料集計なし'; return `<div class="day"><strong>${days[i]}</strong><div><strong>${escapeHtml(title)}</strong><br><span class="small">${escapeHtml(detail)}</span><select onchange="changeSlot(${i}, this.value)">${recipeOptions(slotValue(s))}</select></div></div>`; }).join('');
 }
+function parseQty(value){
+  let s=String(value ?? '').trim();
+  if(!s) return null;
+  s=s.replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/．/g,'.').replace(/／/g,'/').replace(/＋/g,'+').replace(/　/g,' ');
+  const fractionMap={'½':'1/2','⅓':'1/3','⅔':'2/3','¼':'1/4','¾':'3/4'};
+  Object.entries(fractionMap).forEach(([k,v])=>{ s=s.replaceAll(k,v); });
+  if(/^[-+]?\d+(\.\d+)?$/.test(s)) return Number(s);
+  let m=s.match(/^([-+]?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if(m && Number(m[2])!==0) return Number(m[1])/Number(m[2]);
+  m=s.match(/^(\d+(?:\.\d+)?)\s*(?:\+| )\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if(m && Number(m[3])!==0) return Number(m[1])+Number(m[2])/Number(m[3]);
+  return null;
+}
+function scaleQtyDisplay(value, ratio){
+  const n=parseQty(value);
+  if(n!==null) return formatQty(n*ratio);
+  return ratio===1 ? String(value) : `${value} × ${formatQty(ratio)}`;
+}
 function renderShopping(slots,target){
-  const map=new Map(); (slots||[]).filter(s=>s.type==='recipe').forEach(s=>{ const r=findRecipe(s.recipeName||s.title); if(!r) return; const ratio=target/r.baseServings; r.ingredients.forEach(item=>{ const tag=getTagForIngredient(item); const key=tag+'|'+item.name+'|'+item.unit; const current=map.get(key)||{tag,name:item.name,qty:0,unit:item.unit}; current.qty+=item.qty*ratio; map.set(key,current); }); });
+  const map=new Map(); (slots||[]).filter(s=>s.type==='recipe').forEach(s=>{ const r=findRecipe(s.recipeName||s.title); if(!r) return; const ratio=target/r.baseServings; r.ingredients.forEach(item=>{ const tag=getTagForIngredient(item); const parsed=parseQty(item.qty); const key=parsed===null ? tag+'|'+item.name+'|'+item.unit+'|'+item.qty+'|'+ratio : tag+'|'+item.name+'|'+item.unit; const current=map.get(key)||{tag,name:item.name,qty:0,qtyText:'',unit:item.unit,nonNumeric:parsed===null}; if(parsed===null){ current.qtyText=scaleQtyDisplay(item.qty, ratio); } else { current.qty+=parsed*ratio; } map.set(key,current); }); });
   if(!slots || !slots.length){ document.getElementById('shoppingList').innerHTML='<p class="hint">献立を作ると表示されます。</p>'; return; }
   if(map.size===0){ document.getElementById('shoppingList').innerHTML='<p class="hint">冷凍食品・惣菜のみなので、材料集計はありません。</p>'; return; }
   const rows=[...map.values()].sort((a,b)=>a.tag.localeCompare(b.tag,'ja')||a.name.localeCompare(b.name,'ja')); const groups={}; rows.forEach(item=>{ if(!groups[item.tag]) groups[item.tag]=[]; groups[item.tag].push(item); });
-  document.getElementById('shoppingList').innerHTML=Object.keys(groups).map(tag=>{ const trs=groups[tag].map(i=>`<tr><td>${escapeHtml(i.name)}</td><td>${formatQty(i.qty)}</td><td>${escapeHtml(i.unit)}</td></tr>`).join(''); return `<div class="groupTitle"><span class="tagbadge">${escapeHtml(tag)}</span></div><table><thead><tr><th>素材</th><th>数量</th><th>単位</th></tr></thead><tbody>${trs}</tbody></table>`; }).join('');
+  document.getElementById('shoppingList').innerHTML=Object.keys(groups).map(tag=>{ const trs=groups[tag].map(i=>`<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.nonNumeric ? i.qtyText : formatQty(i.qty))}</td><td>${escapeHtml(i.unit)}</td></tr>`).join(''); return `<div class="groupTitle"><span class="tagbadge">${escapeHtml(tag)}</span></div><table><thead><tr><th>素材</th><th>数量</th><th>単位</th></tr></thead><tbody>${trs}</tbody></table>`; }).join('');
 }
 function formatQty(n){ return Number.isInteger(n)?String(n):String(Math.round(n*100)/100); }
 function clearRecipes(){ if(confirm('登録レシピを全て削除しますか？')){ recipes=[]; currentPlan=[]; save(); renderRecipes(); renderPlan(currentPlan,currentTarget); renderShopping(currentPlan,currentTarget); } }
