@@ -1,4 +1,5 @@
-const CACHE_NAME = 'meal-planner-v5-20260615-quantity-text';
+// v6: quantity/unit/tag suggestion buttons
+const CACHE_NAME = 'meal-planner-v6';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
