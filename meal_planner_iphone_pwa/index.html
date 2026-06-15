@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>1週間献立ランダム作成ツール</title>
+  <!-- app-version: v4-iphone-text-quantity-2026-06-15 -->
   <meta name="theme-color" content="#1f2937">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="献立ツール">
@@ -196,7 +197,7 @@ function addIngredientRow(value={name:'',qty:'',unit:'',tag:''}){
   const box=document.getElementById('ingredientRows');
   const id='row_'+Math.random().toString(36).slice(2);
   const div=document.createElement('div'); div.className='ingredientRow'; div.id=id;
-  div.innerHTML=`<input class="ingName" list="materialNames" placeholder="素材" value="${escapeAttr(value.name)}" onfocus="showMaterialSuggestions(this)" oninput="applyMaterialFormat(this); showMaterialSuggestions(this)"><input class="ingQty" type="text" inputmode="decimal" placeholder="数量 例：1 / 1/2 / 少々" value="${escapeAttr(value.qty)}"><input class="ingUnit" list="unitNames" placeholder="単位" value="${escapeAttr(value.unit)}"><input class="ingTag" list="tagNames" placeholder="タグ" value="${escapeAttr(value.tag)}"><button class="danger mini" onclick="removeIngredientRow('${id}')">×</button><div class="suggestPanel"></div>`;
+  div.innerHTML=`<input class="ingName" list="materialNames" placeholder="素材" value="${escapeAttr(value.name)}" onfocus="showMaterialSuggestions(this)" oninput="applyMaterialFormat(this); showMaterialSuggestions(this)"><input class="ingQty" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="数量 例：1 / 1/2 / 少々" value="${escapeAttr(value.qty)}"><input class="ingUnit" list="unitNames" placeholder="単位" value="${escapeAttr(value.unit)}"><input class="ingTag" list="tagNames" placeholder="タグ" value="${escapeAttr(value.tag)}"><button class="danger mini" onclick="removeIngredientRow('${id}')">×</button><div class="suggestPanel"></div>`;
   box.appendChild(div); renderDatalists();
 }
 function removeIngredientRow(id){ const el=document.getElementById(id); if(el) el.remove(); }
@@ -304,7 +305,9 @@ function escapeJs(str){ return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      reg.update();
+    }).catch(() => {});
   });
 }
 load();
