@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meal-planner-v4-20260615';
+const CACHE_NAME = 'meal-planner-v5-20260615-quantity-text';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -16,25 +16,12 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  const req = event.request;
-  const isHtml = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
-
-  if (isHtml) {
-    event.respondWith(
-      fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
-        return res;
-      }).catch(() => caches.match(req).then(res => res || caches.match('./index.html')))
-    );
-    return;
-  }
-
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(req).then(cached => cached || fetch(req).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
-      return res;
-    }))
+    fetch(event.request).then(response => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+      return response;
+    }).catch(() => caches.match(event.request).then(cached => cached || caches.match('./index.html')))
   );
 });
