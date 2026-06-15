@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1週間献立ランダム作成ツール</title>
+  <meta name="theme-color" content="#1f2937">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="献立ツール">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    :root { --bg:#f6f7f9; --card:#fff; --text:#202124; --muted:#666; --line:#ddd; --accent:#2f6fed; --danger:#d93025; --ok:#0b8043; --soft:#f3f4f6; }
+    * { box-sizing:border-box; }
+    html { -webkit-text-size-adjust:100%; }
+    body { padding-bottom: env(safe-area-inset-bottom); }
+    input, select, button { font-size:16px; min-height:44px; }
+    button { touch-action:manipulation; }
+    @media (max-width:520px){ main { padding:10px; } header h1 { font-size:18px; } summary { font-size:15px; } th, td { font-size:13px; padding:7px 5px; } }
+
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:18px 14px; background:#1f2937; color:white; }
+    header h1 { margin:0 0 6px; font-size:20px; }
+    header p { margin:0; font-size:13px; opacity:.85; }
+    main { max-width:1040px; margin:0 auto; padding:14px; }
+    .grid { display:grid; grid-template-columns:1fr; gap:12px; }
+    @media (min-width:860px){ .grid { grid-template-columns:1fr 1fr; } .wide { grid-column:1 / -1; } }
+    details { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,.04); overflow:hidden; }
+    details[open] { padding-bottom:14px; }
+    summary { list-style:none; cursor:pointer; padding:14px; font-weight:800; font-size:16px; display:flex; justify-content:space-between; align-items:center; }
+    summary::-webkit-details-marker { display:none; }
+    summary::after { content:'開く'; font-size:12px; color:var(--muted); font-weight:700; }
+    details[open] summary::after { content:'閉じる'; }
+    .body { padding:0 14px; }
+    h3 { margin:14px 0 8px; font-size:15px; }
+    label { display:block; font-size:13px; font-weight:600; margin:10px 0 5px; }
+    input, select, button { width:100%; font:inherit; border-radius:9px; border:1px solid #c9cdd3; padding:10px; background:white; }
+    button { border:0; background:var(--accent); color:white; font-weight:700; cursor:pointer; margin-top:10px; }
+    button.secondary { background:#4b5563; }
+    button.danger { background:var(--danger); }
+    button.light { background:#eef2ff; color:#1f2937; border:1px solid #c9cdd3; }
+    button.mini { padding:7px 8px; margin:0; font-size:12px; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .ingredientRow { display:grid; grid-template-columns:1.6fr .8fr .8fr 1fr 42px; gap:6px; margin:6px 0; align-items:center; }
+    @media (max-width:680px){ .ingredientRow { grid-template-columns:1fr 1fr; } .ingredientRow button { grid-column:1 / -1; } .row,.row3 { grid-template-columns:1fr; } }
+    .suggestPanel { grid-column:1 / -1; display:none; gap:6px; flex-wrap:wrap; padding:6px 0 2px; }
+    .suggestPanel.open { display:flex; }
+    .suggestBtn { width:auto; margin:0; padding:7px 10px; border-radius:999px; border:1px solid #c9cdd3; background:#f8fafc; color:#1f2937; font-size:12px; font-weight:700; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.5; }
+    .recipe, .tagitem { border:1px solid var(--line); border-radius:10px; padding:10px; margin:8px 0; background:#fafafa; }
+    .recipe strong { display:block; margin-bottom:4px; }
+    .small { font-size:12px; color:var(--muted); white-space:pre-wrap; }
+    .day { display:grid; grid-template-columns:42px 1fr; gap:8px; padding:10px; border-bottom:1px solid var(--line); }
+    .day:last-child { border-bottom:0; }
+    .day select { margin-top:6px; padding:8px; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; background:#e8f0fe; color:#174ea6; font-size:12px; margin:2px 4px 2px 0; }
+    .tagbadge { display:inline-block; padding:2px 8px; border-radius:999px; background:#ecfdf3; color:#137333; font-size:12px; margin:2px 4px 2px 0; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { border-bottom:1px solid var(--line); padding:8px; text-align:left; vertical-align:top; }
+    th { background:var(--soft); }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .status { margin-top:8px; color:var(--ok); font-size:13px; }
+    .groupTitle { margin:12px 0 6px; font-weight:700; }
+    .pillbar { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>1週間献立ランダム作成ツール</h1>
+  <p>完全オフライン対応。レシピ・材料タグはこの端末のブラウザ内に保存されます。</p>
+</header>
+<main>
+  <div class="grid">
+    <details open>
+      <summary>献立設定</summary>
+      <div class="body">
+        <div class="row">
+          <div><label>作成人数</label><select id="targetServings"><option value="1">1人分</option><option value="2">2人分</option><option value="3" selected>3人分</option><option value="4">4人分</option><option value="5">5人分</option><option value="8">8人分</option></select></div>
+          <div><label>通常レシピの重複</label><select id="allowDuplicate"><option value="no" selected>なるべく避ける</option><option value="yes">許可する</option></select></div>
+        </div>
+        <div class="row">
+          <div><label>冷凍食品の日数</label><select id="frozenDays"><option value="0">0日</option><option value="1" selected>1日</option><option value="2">2日</option><option value="3">3日</option><option value="4">4日</option><option value="5">5日</option></select></div>
+          <div><label>惣菜の日数</label><select id="deliDays"><option value="0">0日</option><option value="1" selected>1日</option><option value="2">2日</option><option value="3">3日</option><option value="4">4日</option><option value="5">5日</option></select></div>
+        </div>
+        <button onclick="generatePlan()">1週間の献立を作る</button>
+        <p class="hint">冷凍食品＋惣菜が7日を超える場合は自動で止めます。</p>
+      </div>
+    </details>
+
+    <details open>
+      <summary>1週間の献立</summary>
+      <div class="body">
+        <div id="planResult" class="hint">まだ作成されていません。</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>レシピ追加</summary>
+      <div class="body">
+        <label>レシピ名</label><input id="recipeName" placeholder="例：カレー">
+        <div class="row">
+          <div><label>基準人数</label><select id="baseServings"><option value="1">1人分</option><option value="2" selected>2人分</option><option value="3">3人分</option><option value="4">4人分</option><option value="5">5人分</option><option value="8">8人分</option></select></div>
+          <div><label>カテゴリ</label><input id="category" placeholder="例：和食 / 洋食"></div>
+        </div>
+        <h3>材料フォーム</h3>
+        <div class="row3 small"><div>素材</div><div>数量</div><div>単位・タグ</div></div>
+        <div id="ingredientRows"></div>
+        <button class="light" onclick="addIngredientRow()">材料行を追加</button>
+        <button onclick="addRecipe()">レシピを保存</button>
+        <p class="hint">素材・数量・単位・タグを分けて登録します。タグを空欄にした場合は、材料タグ管理に登録済みのタグを使います。</p>
+        <div id="saveStatus" class="status"></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>材料タグ管理</summary>
+      <div class="body">
+        <div class="row3">
+          <div><label>素材</label><input id="tagIngredientName" placeholder="例：鶏もも肉"></div>
+          <div><label>単位</label><input id="tagUnit" list="unitNames" placeholder="例：g / 個 / 本 / 大さじ / 小さじ"></div>
+          <div><label>タグ</label><input id="tagName" placeholder="例：肉 / 野菜 / 調味料"></div>
+        </div>
+        <button onclick="addIngredientTag()">材料フォーマットを保存</button>
+        <p class="hint">素材ごとに標準単位とタグを登録します。レシピ追加時の単位候補・買い物リストのタグ分けに使います。</p>
+        <div id="tagStatus" class="status"></div>
+        <h3>登録済み材料フォーマット</h3>
+        <div id="tagList"></div>
+      </div>
+    </details>
+
+    <details class="wide" open>
+      <summary>必要材料</summary>
+      <div class="body"><div id="shoppingList" class="hint">献立を作ると表示されます。</div></div>
+    </details>
+
+    <details class="wide">
+      <summary>登録レシピ</summary>
+      <div class="body">
+        <div id="recipeList"></div>
+        <button class="danger" onclick="clearRecipes()">全レシピ削除</button>
+      </div>
+    </details>
+
+    <details class="wide">
+      <summary>データ管理</summary>
+      <div class="body">
+        <div class="actions"><button class="secondary" onclick="exportData()">データを書き出し</button><button class="light" onclick="document.getElementById('importFile').click()">読み込み</button></div>
+        <input id="importFile" type="file" accept="application/json" style="display:none" onchange="importData(event)">
+        <p class="hint">スマホ移行やバックアップ用です。書き出したJSONを読み込めば、レシピ・材料フォーマットを復元できます。</p>
+      </div>
+    </details>
+  </div>
+</main>
+<script>
+const STORAGE_KEY = 'offline_meal_planner_v3';
+const OLD_KEYS = ['offline_meal_planner_v2','offline_meal_planner_v1'];
+const days = ['月','火','水','木','金','土','日'];
+let recipes = [];
+let ingredientTags = {};
+let ingredientFormats = {};
+let currentPlan = [];
+let currentTarget = 3;
+
+function defaultRecipes(){ return [
+  {name:'カレー', baseServings:4, category:'定番', ingredients:[{name:'豚こま肉', qty:300, unit:'g'}, {name:'玉ねぎ', qty:2, unit:'個'}, {name:'じゃがいも', qty:3, unit:'個'}, {name:'にんじん', qty:1, unit:'本'}, {name:'カレールー', qty:0.5, unit:'箱'}]},
+  {name:'親子丼', baseServings:2, category:'丼', ingredients:[{name:'鶏もも肉', qty:200, unit:'g'}, {name:'玉ねぎ', qty:1, unit:'個'}, {name:'卵', qty:3, unit:'個'}, {name:'めんつゆ', qty:50, unit:'ml'}]},
+  {name:'豚汁', baseServings:4, category:'和食', ingredients:[{name:'豚バラ肉', qty:250, unit:'g'}, {name:'大根', qty:0.25, unit:'本'}, {name:'にんじん', qty:1, unit:'本'}, {name:'味噌', qty:60, unit:'g'}, {name:'豆腐', qty:1, unit:'丁'}]},
+  {name:'焼きそば', baseServings:3, category:'麺', ingredients:[{name:'焼きそば麺', qty:3, unit:'玉'}, {name:'豚こま肉', qty:200, unit:'g'}, {name:'キャベツ', qty:0.25, unit:'玉'}, {name:'もやし', qty:1, unit:'袋'}]}
+];}
+function defaultTags(){ return {'豚こま肉':'肉','豚バラ肉':'肉','鶏もも肉':'肉','卵':'卵・乳製品','豆腐':'豆腐・大豆','玉ねぎ':'野菜','じゃがいも':'野菜','にんじん':'野菜','大根':'野菜','キャベツ':'野菜','もやし':'野菜','カレールー':'調味料','めんつゆ':'調味料','味噌':'調味料','焼きそば麺':'主食'}; }
+function defaultFormats(){ const units={'豚こま肉':'g','豚バラ肉':'g','鶏もも肉':'g','卵':'個','豆腐':'丁','玉ねぎ':'個','じゃがいも':'個','にんじん':'本','大根':'本','キャベツ':'玉','もやし':'袋','カレールー':'箱','めんつゆ':'ml','味噌':'g','焼きそば麺':'玉'}; const tags=defaultTags(); const out={}; Object.keys(tags).forEach(k=>out[k]={unit:units[k]||'', tag:tags[k]}); return out; }
+function normalizeRecipe(r){ return { name:r.name, baseServings:Number(r.baseServings||2), category:r.category||'', ingredients:(r.ingredients||[]).map(i=>({name:i.name, qty:String(i.qty ?? ''), unit:i.unit||'', tag:i.tag||''})) }; }
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({recipes, ingredientTags, ingredientFormats, currentPlan, currentTarget})); }
+function load(){
+  try {
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw){ for(const k of OLD_KEYS){ raw = localStorage.getItem(k); if(raw) break; } }
+    if(raw){
+      const data = JSON.parse(raw);
+      if(Array.isArray(data)){ recipes=data; ingredientTags=defaultTags(); ingredientFormats=defaultFormats(); }
+      else { recipes=data.recipes||[]; ingredientTags=data.ingredientTags||defaultTags(); ingredientFormats=data.ingredientFormats||{}; currentPlan=data.currentPlan||[]; currentTarget=Number(data.currentTarget||3); }
+    } else { recipes=defaultRecipes(); ingredientTags=defaultTags(); ingredientFormats=defaultFormats(); }
+  } catch(e){ recipes=defaultRecipes(); ingredientTags=defaultTags(); ingredientFormats=defaultFormats(); }
+  recipes = recipes.map(normalizeRecipe);
+  Object.entries(ingredientTags).forEach(([name,tag])=>{ if(!ingredientFormats[name]) ingredientFormats[name]={unit:'', tag}; });
+  recipes.forEach(r=>r.ingredients.forEach(i=>{ if(!ingredientFormats[i.name]) ingredientFormats[i.name]={unit:i.unit||'', tag:i.tag||ingredientTags[i.name]||''}; }));
+  document.getElementById('targetServings').value = String(currentTarget || 3);
+  if(!document.getElementById('ingredientRows').children.length){ addIngredientRow(); addIngredientRow(); addIngredientRow(); }
+  save(); renderRecipes(); renderTags(); renderPlan(currentPlan, currentTarget); renderShopping(currentPlan, currentTarget);
+}
+function getFormat(name){ return ingredientFormats[name] || {unit:'', tag:ingredientTags[name]||''}; }
+function getTagForIngredient(item){ return item.tag || getFormat(item.name).tag || ingredientTags[item.name] || '未分類'; }
+function addIngredientRow(value={name:'',qty:'',unit:'',tag:''}){
+  const box=document.getElementById('ingredientRows');
+  const id='row_'+Math.random().toString(36).slice(2);
+  const div=document.createElement('div'); div.className='ingredientRow'; div.id=id;
+  div.innerHTML=`<input class="ingName" list="materialNames" placeholder="素材" value="${escapeAttr(value.name)}" onfocus="showMaterialSuggestions(this)" oninput="applyMaterialFormat(this); showMaterialSuggestions(this)"><input class="ingQty" type="text" inputmode="decimal" placeholder="数量 例：1 / 1/2 / 少々" value="${escapeAttr(value.qty)}"><input class="ingUnit" list="unitNames" placeholder="単位" value="${escapeAttr(value.unit)}"><input class="ingTag" list="tagNames" placeholder="タグ" value="${escapeAttr(value.tag)}"><button class="danger mini" onclick="removeIngredientRow('${id}')">×</button><div class="suggestPanel"></div>`;
+  box.appendChild(div); renderDatalists();
+}
+function removeIngredientRow(id){ const el=document.getElementById(id); if(el) el.remove(); }
+function applyMaterialFormat(input){ const f=getFormat(input.value.trim()); const row=input.closest('.ingredientRow'); if(f.unit && !row.querySelector('.ingUnit').value) row.querySelector('.ingUnit').value=f.unit; if(f.tag && !row.querySelector('.ingTag').value) row.querySelector('.ingTag').value=f.tag; }
+function materialNames(){ return [...new Set([...Object.keys(ingredientFormats), ...recipes.flatMap(r=>r.ingredients.map(i=>i.name))])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ja')); }
+function showMaterialSuggestions(input){
+  const row=input.closest('.ingredientRow'); const panel=row.querySelector('.suggestPanel'); if(!panel) return;
+  const q=input.value.trim();
+  const list=materialNames().filter(name=>!q || name.includes(q)).slice(0,18);
+  if(!list.length){ panel.classList.remove('open'); panel.innerHTML=''; return; }
+  panel.innerHTML=list.map(name=>`<button type="button" class="suggestBtn" onclick="chooseMaterialSuggestion(this, '${escapeJs(name)}')">${escapeHtml(name)}</button>`).join('');
+  panel.classList.add('open');
+}
+function chooseMaterialSuggestion(btn,name){
+  const row=btn.closest('.ingredientRow'); const input=row.querySelector('.ingName');
+  input.value=name; applyMaterialFormat(input);
+  const panel=row.querySelector('.suggestPanel'); if(panel){ panel.classList.remove('open'); panel.innerHTML=''; }
+}
+function readIngredientRows(){ return [...document.querySelectorAll('.ingredientRow')].map(row=>({name:row.querySelector('.ingName').value.trim(), qty:row.querySelector('.ingQty').value.trim(), unit:row.querySelector('.ingUnit').value.trim(), tag:row.querySelector('.ingTag').value.trim()})).filter(i=>i.name && i.qty); }
+function addRecipe(){
+  const name=document.getElementById('recipeName').value.trim(); const baseServings=Number(document.getElementById('baseServings').value); const category=document.getElementById('category').value.trim(); const ingredients=readIngredientRows();
+  if(!name){ alert('レシピ名を入力してください'); return; }
+  if(ingredients.length===0){ alert('材料を入力してください'); return; }
+  ingredients.forEach(i=>{ if(!ingredientFormats[i.name]) ingredientFormats[i.name]={unit:i.unit, tag:i.tag}; if(i.tag) ingredientTags[i.name]=i.tag; });
+  recipes.push({name, baseServings, category, ingredients}); save(); renderRecipes(); renderTags();
+  document.getElementById('recipeName').value=''; document.getElementById('category').value=''; document.getElementById('ingredientRows').innerHTML=''; addIngredientRow(); addIngredientRow(); addIngredientRow();
+  document.getElementById('saveStatus').textContent='保存しました'; setTimeout(()=>document.getElementById('saveStatus').textContent='',1800);
+}
+function addIngredientTag(){
+  const name=document.getElementById('tagIngredientName').value.trim(); const unit=document.getElementById('tagUnit').value.trim(); const tag=document.getElementById('tagName').value.trim();
+  if(!name){ alert('素材を入力してください'); return; } if(!tag){ alert('タグを入力してください'); return; }
+  ingredientFormats[name]={unit, tag}; ingredientTags[name]=tag; save(); renderTags(); renderRecipes(); renderDatalists();
+  document.getElementById('tagIngredientName').value=''; document.getElementById('tagUnit').value=''; document.getElementById('tagName').value='';
+  document.getElementById('tagStatus').textContent='材料フォーマットを保存しました'; setTimeout(()=>document.getElementById('tagStatus').textContent='',1800);
+}
+function deleteIngredientTag(name){ delete ingredientTags[name]; delete ingredientFormats[name]; save(); renderTags(); renderRecipes(); renderDatalists(); }
+function renderDatalists(){
+  ['materialNames','unitNames','tagNames'].forEach(id=>{ const old=document.getElementById(id); if(old) old.remove(); });
+  const materials=[...new Set([...Object.keys(ingredientFormats), ...recipes.flatMap(r=>r.ingredients.map(i=>i.name))])].sort((a,b)=>a.localeCompare(b,'ja'));
+  const defaultUnits=['g','kg','ml','L','個','本','枚','袋','玉','丁','箱','大さじ','小さじ','少々','適量'];
+  const units=[...new Set([...defaultUnits, ...Object.values(ingredientFormats).map(f=>f.unit), ...recipes.flatMap(r=>r.ingredients.map(i=>i.unit))].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
+  const tags=[...new Set([...Object.values(ingredientFormats).map(f=>f.tag), ...Object.values(ingredientTags), ...recipes.flatMap(r=>r.ingredients.map(i=>i.tag))].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
+  document.body.insertAdjacentHTML('beforeend', `<datalist id="materialNames">${materials.map(x=>`<option value="${escapeAttr(x)}">`).join('')}</datalist><datalist id="unitNames">${units.map(x=>`<option value="${escapeAttr(x)}">`).join('')}</datalist><datalist id="tagNames">${tags.map(x=>`<option value="${escapeAttr(x)}">`).join('')}</datalist>`);
+}
+function renderTags(){
+  const box=document.getElementById('tagList'); const entries=Object.entries(ingredientFormats).sort((a,b)=>(a[1].tag||'').localeCompare(b[1].tag||'','ja') || a[0].localeCompare(b[0],'ja'));
+  if(!entries.length){ box.innerHTML='<p class="hint">材料フォーマットがありません。</p>'; return; }
+  box.innerHTML=entries.map(([name,f])=>`<div class="tagitem"><span class="tagbadge">${escapeHtml(f.tag||'未分類')}</span> ${escapeHtml(name)} <span class="small">標準単位：${escapeHtml(f.unit||'-')}</span><button class="danger" onclick="deleteIngredientTag('${escapeJs(name)}')">削除</button></div>`).join('');
+}
+function deleteRecipe(index){ recipes.splice(index,1); save(); renderRecipes(); }
+function renderRecipes(){
+  const box=document.getElementById('recipeList'); if(!recipes.length){ box.innerHTML='<p class="hint">レシピがありません。</p>'; return; }
+  box.innerHTML=recipes.map((r,i)=>{ const items=r.ingredients.map(x=>`${x.name} ${x.qty}${x.unit} [${getTagForIngredient(x)}]`).join(' / '); return `<div class="recipe"><strong>${escapeHtml(r.name)} <span class="badge">${r.baseServings}人基準</span></strong><div class="small">${escapeHtml(r.category||'カテゴリなし')}｜材料：${r.ingredients.length}件</div><div class="small">${escapeHtml(items)}</div><button class="danger" onclick="deleteRecipe(${i})">削除</button></div>`; }).join('');
+}
+function shuffle(arr){ return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]); }
+function generatePlan(){
+  const target=Number(document.getElementById('targetServings').value); currentTarget=target; const frozen=Number(document.getElementById('frozenDays').value); const deli=Number(document.getElementById('deliDays').value); const allowDup=document.getElementById('allowDuplicate').value==='yes';
+  if(frozen+deli>7){ alert('冷凍食品と惣菜の日数の合計は7日以内にしてください'); return; }
+  const normalDays=7-frozen-deli; if(normalDays>0 && recipes.length===0){ alert('通常レシピの日があるので、レシピを追加してください'); return; }
+  if(normalDays>recipes.length && !allowDup){ alert('登録レシピ数が足りません。重複を許可するか、レシピを追加してください。'); return; }
+  let slots=[]; for(let i=0;i<frozen;i++) slots.push({type:'frozen', title:'冷凍食品の日'}); for(let i=0;i<deli;i++) slots.push({type:'deli', title:'惣菜の日'});
+  let pool=shuffle([...recipes]); for(let i=0;i<normalDays;i++){ if(allowDup && pool.length===0) pool=shuffle([...recipes]); const r=pool.shift(); slots.push({type:'recipe', title:r.name, recipeName:r.name}); }
+  currentPlan=shuffle(slots).slice(0,7); save(); renderPlan(currentPlan,target); renderShopping(currentPlan,target);
+}
+function findRecipe(name){ return recipes.find(r=>r.name===name); }
+function recipeOptions(selected){ const base=['<option value="__frozen__">冷凍食品の日</option>','<option value="__deli__">惣菜の日</option>']; const rs=recipes.map(r=>`<option value="${escapeAttr(r.name)}">${escapeHtml(r.name)}</option>`); return [...base,...rs].join('').replace(`value="${escapeAttr(selected)}"`,`value="${escapeAttr(selected)}" selected`); }
+function slotValue(s){ if(s.type==='frozen') return '__frozen__'; if(s.type==='deli') return '__deli__'; return s.recipeName || s.title; }
+function changeSlot(index,value){ if(value==='__frozen__') currentPlan[index]={type:'frozen', title:'冷凍食品の日'}; else if(value==='__deli__') currentPlan[index]={type:'deli', title:'惣菜の日'}; else currentPlan[index]={type:'recipe', title:value, recipeName:value}; save(); renderPlan(currentPlan,currentTarget); renderShopping(currentPlan,currentTarget); }
+function renderPlan(slots,target){
+  const box=document.getElementById('planResult'); if(!slots || !slots.length){ box.innerHTML='まだ作成されていません。'; return; }
+  box.innerHTML=slots.map((s,i)=>{ const r=s.type==='recipe'?findRecipe(s.recipeName||s.title):null; const title=s.type==='recipe' && r ? r.name : s.title; const detail=r ? `${r.category||'通常'}｜${r.baseServings}人基準 → ${target}人分` : '材料集計なし'; return `<div class="day"><strong>${days[i]}</strong><div><strong>${escapeHtml(title)}</strong><br><span class="small">${escapeHtml(detail)}</span><select onchange="changeSlot(${i}, this.value)">${recipeOptions(slotValue(s))}</select></div></div>`; }).join('');
+}
+function parseQty(value){
+  let s=String(value ?? '').trim();
+  if(!s) return null;
+  s=s.replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/．/g,'.').replace(/／/g,'/').replace(/＋/g,'+').replace(/　/g,' ');
+  const fractionMap={'½':'1/2','⅓':'1/3','⅔':'2/3','¼':'1/4','¾':'3/4'};
+  Object.entries(fractionMap).forEach(([k,v])=>{ s=s.replaceAll(k,v); });
+  if(/^[-+]?\d+(\.\d+)?$/.test(s)) return Number(s);
+  let m=s.match(/^([-+]?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if(m && Number(m[2])!==0) return Number(m[1])/Number(m[2]);
+  m=s.match(/^(\d+(?:\.\d+)?)\s*(?:\+| )\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if(m && Number(m[3])!==0) return Number(m[1])+Number(m[2])/Number(m[3]);
+  return null;
+}
+function scaleQtyDisplay(value, ratio){
+  const n=parseQty(value);
+  if(n!==null) return formatQty(n*ratio);
+  return ratio===1 ? String(value) : `${value} × ${formatQty(ratio)}`;
+}
+function renderShopping(slots,target){
+  const map=new Map(); (slots||[]).filter(s=>s.type==='recipe').forEach(s=>{ const r=findRecipe(s.recipeName||s.title); if(!r) return; const ratio=target/r.baseServings; r.ingredients.forEach(item=>{ const tag=getTagForIngredient(item); const parsed=parseQty(item.qty); const key=parsed===null ? tag+'|'+item.name+'|'+item.unit+'|'+item.qty+'|'+ratio : tag+'|'+item.name+'|'+item.unit; const current=map.get(key)||{tag,name:item.name,qty:0,qtyText:'',unit:item.unit,nonNumeric:parsed===null}; if(parsed===null){ current.qtyText=scaleQtyDisplay(item.qty, ratio); } else { current.qty+=parsed*ratio; } map.set(key,current); }); });
+  if(!slots || !slots.length){ document.getElementById('shoppingList').innerHTML='<p class="hint">献立を作ると表示されます。</p>'; return; }
+  if(map.size===0){ document.getElementById('shoppingList').innerHTML='<p class="hint">冷凍食品・惣菜のみなので、材料集計はありません。</p>'; return; }
+  const rows=[...map.values()].sort((a,b)=>a.tag.localeCompare(b.tag,'ja')||a.name.localeCompare(b.name,'ja')); const groups={}; rows.forEach(item=>{ if(!groups[item.tag]) groups[item.tag]=[]; groups[item.tag].push(item); });
+  document.getElementById('shoppingList').innerHTML=Object.keys(groups).map(tag=>{ const trs=groups[tag].map(i=>`<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.nonNumeric ? i.qtyText : formatQty(i.qty))}</td><td>${escapeHtml(i.unit)}</td></tr>`).join(''); return `<div class="groupTitle"><span class="tagbadge">${escapeHtml(tag)}</span></div><table><thead><tr><th>素材</th><th>数量</th><th>単位</th></tr></thead><tbody>${trs}</tbody></table>`; }).join('');
+}
+function formatQty(n){ return Number.isInteger(n)?String(n):String(Math.round(n*100)/100); }
+function clearRecipes(){ if(confirm('登録レシピを全て削除しますか？')){ recipes=[]; currentPlan=[]; save(); renderRecipes(); renderPlan(currentPlan,currentTarget); renderShopping(currentPlan,currentTarget); } }
+function exportData(){ const data={recipes, ingredientTags, ingredientFormats, currentPlan, currentTarget}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='meal_planner_data.json'; a.click(); URL.revokeObjectURL(url); }
+function importData(event){ const file=event.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=()=>{ try{ const data=JSON.parse(reader.result); if(Array.isArray(data)){ recipes=data; ingredientTags=defaultTags(); ingredientFormats=defaultFormats(); currentPlan=[]; } else { recipes=data.recipes||[]; ingredientTags=data.ingredientTags||defaultTags(); ingredientFormats=data.ingredientFormats||defaultFormats(); currentPlan=data.currentPlan||[]; currentTarget=Number(data.currentTarget||3); } save(); load(); alert('読み込みました'); } catch(e){ alert('読み込みに失敗しました'); } }; reader.readAsText(file); }
+function escapeHtml(str){ return String(str).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+function escapeAttr(str){ return escapeHtml(str); }
+function escapeJs(str){ return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+load();
+</script>
+</body>
+</html>
